@@ -6,11 +6,30 @@ import (
 	"net/http"
 	"strconv"
 
+	"otakuhub-backend/internal/middleware"
 	"otakuhub-backend/internal/models"
 )
 
 type UserHandler struct {
 	userRepo *models.UserRepository
+}
+
+func authenticatedUserID(r *http.Request) (int, bool) {
+	value, ok := r.Context().Value(middleware.UserContextKey).(string)
+	if !ok {
+		return 0, false
+	}
+	id, err := strconv.Atoi(value)
+	return id, err == nil && id > 0
+}
+
+func ownsUserRequest(w http.ResponseWriter, r *http.Request, requested int) bool {
+	userID, ok := authenticatedUserID(r)
+	if !ok || userID != requested {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return false
+	}
+	return true
 }
 
 func NewUserHandler(db *sql.DB) *UserHandler {
@@ -38,6 +57,11 @@ func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
+	viewerID, authenticated := authenticatedUserID(r)
+	if !authenticated {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
 	user, err := h.userRepo.GetUserByID(id)
 	if err != nil {
@@ -45,22 +69,19 @@ func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	favorites, err := h.userRepo.GetUserFavorites(id)
-	if err != nil {
-		favorites = []models.Favorite{}
+	favorites := []models.Favorite{}
+	if viewerID == id {
+		favorites, err = h.userRepo.GetUserFavorites(id)
+		if err != nil {
+			favorites = []models.Favorite{}
+		}
 	}
 
 	response := map[string]interface{}{
-		"user":      user,
-		"favorites": favorites,
-		// Radar chart mock data based on preferences
-		"radar_stats": map[string]int{
-			"Action":    85,
-			"Romance":   60,
-			"Sci-Fi":    75,
-			"Fantasy":   90,
-			"SliceOfLife": 50,
-		},
+		"user":        user,
+		"favorites":   favorites,
+		"radar_stats": map[string]int{},
+		"is_owner":    viewerID == id,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -82,6 +103,9 @@ func (h *UserHandler) GetFavorites(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
+		return
+	}
+	if !ownsUserRequest(w, r, userID) {
 		return
 	}
 
@@ -111,6 +135,9 @@ func (h *UserHandler) AddFavorite(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid payload", http.StatusBadRequest)
 		return
 	}
+	if !ownsUserRequest(w, r, req.UserID) {
+		return
+	}
 
 	err := h.userRepo.AddFavorite(req.UserID, req.ItemID, req.ItemType)
 	if err != nil {
@@ -137,6 +164,9 @@ func (h *UserHandler) DeleteFavorite(w http.ResponseWriter, r *http.Request) {
 
 	favID, _ := strconv.Atoi(favIDStr)
 	userID, _ := strconv.Atoi(userIDStr)
+	if !ownsUserRequest(w, r, userID) {
+		return
+	}
 
 	err := h.userRepo.DeleteFavorite(favID, userID)
 	if err != nil {

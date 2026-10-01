@@ -24,7 +24,27 @@ func (h *CharacterHandler) GetCharacterList(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	list, err := h.repo.GetAll()
+	filters := models.CharacterFilters{
+		Name:       strings.TrimSpace(r.URL.Query().Get("query")),
+		MediaTitle: strings.TrimSpace(r.URL.Query().Get("title")),
+		MediaType:  strings.TrimSpace(r.URL.Query().Get("type")),
+	}
+	var err error
+	if value := r.URL.Query().Get("year_from"); value != "" {
+		filters.YearFrom, err = strconv.Atoi(value)
+		if err != nil || filters.YearFrom < 0 {
+			http.Error(w, "Invalid year_from", http.StatusBadRequest)
+			return
+		}
+	}
+	if value := r.URL.Query().Get("year_to"); value != "" {
+		filters.YearTo, err = strconv.Atoi(value)
+		if err != nil || filters.YearTo < 0 || (filters.YearFrom > 0 && filters.YearTo < filters.YearFrom) {
+			http.Error(w, "Invalid year_to", http.StatusBadRequest)
+			return
+		}
+	}
+	list, err := h.repo.GetAll(filters)
 	if err != nil {
 		http.Error(w, "Could not fetch characters", http.StatusInternalServerError)
 		return

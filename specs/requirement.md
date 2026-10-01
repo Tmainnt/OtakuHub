@@ -15,7 +15,7 @@
 
 ### Database
 - PostgreSQL
-- สร้างฐานข้อมูล PostgreSQL ในเครื่องโดยใช้ user เป็น postgres หรือก็คือ psql -U postgres, รหัสผ่านคือ Reyzaburrel123@
+- Configure local PostgreSQL credentials through environment variables; do not store passwords in source or specification files.
 
 ## Goal
 เป็นเว็บไซต์ที่ทำขึ้นมาเพื่อดูข้อมูลของตัอนิเมะ/มังงะ/นิยาย/ตัวละครอนิเมะที่เราสนใจ โดยในเว็บไซต์จะมีรายการต่างๆมากมาย มี

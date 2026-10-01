@@ -14,7 +14,7 @@ Build OtakuHub, a comprehensive platform for anime, manga, novels, and character
 
 **Primary Dependencies**: Next.js 14/15, React, Tailwind CSS, Go standard library / Gin or Fiber (Backend), PostgreSQL driver (pgx / lib/pq)
 
-**Storage**: PostgreSQL (local database, user: `postgres`, password: `Reyzaburrel123@`)
+**Storage**: PostgreSQL, configured through environment variables (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`)
 
 **Testing**: Jest / React Testing Library (Frontend), Go `testing` package (Backend)
 

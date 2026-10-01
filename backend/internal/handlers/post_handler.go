@@ -4,7 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 
+	"otakuhub-backend/internal/middleware"
 	"otakuhub-backend/internal/models"
 )
 
@@ -43,6 +46,21 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid payload", http.StatusBadRequest)
 		return
 	}
+	userID, ok := r.Context().Value(middleware.UserContextKey).(string)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	userIDValue, err := strconv.Atoi(userID)
+	if err != nil || userIDValue <= 0 {
+		http.Error(w, "Invalid authenticated user", http.StatusUnauthorized)
+		return
+	}
+	p.UserID = userIDValue
+	if strings.TrimSpace(p.Content) == "" {
+		http.Error(w, "Post content is required", http.StatusBadRequest)
+		return
+	}
 
 	if err := h.repo.Create(&p); err != nil {
 		http.Error(w, "Could not create post", http.StatusInternalServerError)
@@ -60,11 +78,6 @@ func (h *PostHandler) GetRecommendations(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	recommendations := []map[string]interface{}{
-		{"id": 2, "username": "AnimeOtaku99", "match_percentage": 95, "favorite_genre": "Action & Fantasy"},
-		{"id": 3, "username": "MangaReaderX", "match_percentage": 88, "favorite_genre": "Romance & Slice of Life"},
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(recommendations)
+	json.NewEncoder(w).Encode([]interface{}{})
 }

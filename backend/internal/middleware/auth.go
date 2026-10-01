@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -12,10 +11,14 @@ import (
 type contextKey string
 
 const UserContextKey contextKey = "userID"
+const UserRoleContextKey contextKey = "userRole"
 
-var jwtSecret = []byte(getEnv("JWT_SECRET", "your_jwt_secret_key_here"))
+type tokenClaims struct {
+	Role string `json:"role"`
+	jwt.RegisteredClaims
+}
 
-func AuthMiddleware(next http.Handler) http.Handler {
+func AuthMiddleware(secret []byte, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -30,10 +33,13 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		tokenStr := parts[1]
-		claims := &jwt.RegisteredClaims{}
+		claims := &tokenClaims{}
 
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-			return jwtSecret, nil
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, jwt.ErrSignatureInvalid
+			}
+			return secret, nil
 		})
 
 		if err != nil || !token.Valid {
@@ -42,13 +48,18 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), UserContextKey, claims.Subject)
+		ctx = context.WithValue(ctx, UserRoleContextKey, claims.Role)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-func getEnv(key, fallback string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
-	}
-	return fallback
+func RequireAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		role, ok := r.Context().Value(UserRoleContextKey).(string)
+		if !ok || role != "admin" {
+			http.Error(w, "Admin role required", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

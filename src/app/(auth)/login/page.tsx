@@ -2,77 +2,60 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import AuthLayout from '@/components/AuthLayout';
+import { fetchAPI } from '@/services/api';
+
+type LoginResponse = { token: string; user_id: number; username: string; role: string };
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (submitting) return;
     setError('');
+    setSubmitting(true);
 
     try {
-      const res = await fetch('http://localhost:8080/api/auth/login', {
+      const data = await fetchAPI('/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
+        body: JSON.stringify({ username: username.trim(), password }),
+      }) as LoginResponse;
 
-      if (!res.ok) {
-        throw new Error('Invalid username or password');
-      }
-
-      const data = await res.json();
+      if (!data?.token || !data.user_id) throw new Error('The server returned an invalid login response.');
       localStorage.setItem('token', data.token);
-      router.push('/profile');
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
+      localStorage.setItem('userId', String(data.user_id));
+      localStorage.setItem('userRole', data.role);
+      window.dispatchEvent(new Event('authchange'));
+
+      const next = new URLSearchParams(window.location.search).get('next');
+      const destination = next?.startsWith('/') && !next.startsWith('//') && !next.includes('\\') ? next : '/catalog';
+      router.replace(destination);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign in failed. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
-        <h2 className="mb-6 text-center text-2xl font-bold text-gray-800">Login to OtakuHub</h2>
-        {error && <div className="mb-4 rounded bg-red-100 p-3 text-sm text-red-600">{error}</div>}
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Username</label>
-            <input
-              type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 p-2 focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 p-2 focus:border-indigo-500 focus:outline-none"
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full rounded-md bg-indigo-600 py-2 text-white font-semibold hover:bg-indigo-700 transition"
-          >
-            Sign In
-          </button>
-        </form>
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Don't have an account?{' '}
-          <Link href="/register" className="text-indigo-600 hover:underline">
-            Register here
-          </Link>
-        </p>
-      </div>
-    </div>
+    <AuthLayout mode="login">
+      {error && <div role="alert" className="mb-5 rounded-xl border border-rose-400/20 bg-rose-400/10 px-4 py-3 text-sm leading-6 text-rose-200">{error}</div>}
+      <form onSubmit={handleLogin} className="space-y-5">
+        <div>
+          <label htmlFor="username" className="mb-2 block text-sm font-medium text-zinc-200">Username</label>
+          <input id="username" name="username" type="text" autoComplete="username" required minLength={3} maxLength={32} value={username} onChange={(event) => setUsername(event.target.value)} className="w-full rounded-xl border border-white/10 bg-white/[.04] px-4 py-3.5 text-white outline-none transition placeholder:text-zinc-600 focus:border-violet-400/60 focus:ring-4 focus:ring-violet-400/10" placeholder="Your username" />
+        </div>
+        <div>
+          <label htmlFor="password" className="mb-2 block text-sm font-medium text-zinc-200">Password</label>
+          <input id="password" name="password" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-xl border border-white/10 bg-white/[.04] px-4 py-3.5 text-white outline-none transition placeholder:text-zinc-600 focus:border-violet-400/60 focus:ring-4 focus:ring-violet-400/10" placeholder="Enter your password" />
+        </div>
+        <button type="submit" disabled={submitting} className="flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-3.5 font-bold text-white shadow-lg shadow-violet-950/30 transition hover:brightness-110 disabled:cursor-wait disabled:opacity-60">{submitting ? 'Signing in…' : 'Sign in'}</button>
+      </form>
+    </AuthLayout>
   );
 }

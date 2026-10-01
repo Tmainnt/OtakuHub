@@ -2,36 +2,36 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { fetchAPI } from '@/services/api';
+import Link from 'next/link';
+import { useSyncExternalStore } from 'react';
+
+type MediaDetails = { id: number; title: string; type: string; origin_country?: string; source_format?: string; release_year?: number; creator?: string; episodes_or_volumes?: number; watch_order_info?: string; ost_list?: string; social_links?: string; characters?: { id: number; name: string; birthplace?: string; first_appearance_year?: number }[] };
+
+const subscribeToAuth = (callback: () => void) => {
+  window.addEventListener('storage', callback);
+  window.addEventListener('authchange', callback);
+  return () => { window.removeEventListener('storage', callback); window.removeEventListener('authchange', callback); };
+};
+const getRole = () => localStorage.getItem('userRole') || '';
 
 export default function MediaDetailPage() {
+  const isAdmin = useSyncExternalStore(subscribeToAuth, getRole, () => '') === 'admin';
   const params = useParams();
   const id = params?.id;
-  const [media, setMedia] = useState<any>(null);
+  const [media, setMedia] = useState<MediaDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (!id) return;
     const fetchMedia = async () => {
       try {
-        const res = await fetch(`http://localhost:8080/api/media/${id}`);
-        if (!res.ok) throw new Error('Failed to fetch media');
-        const data = await res.json();
-        setMedia(data);
+        setError('');
+        setMedia(await fetchAPI(`/media/${id}`));
       } catch (err) {
-        // Fallback mock
-        setMedia({
-          id: Number(id),
-          title: 'Attack on Titan',
-          type: 'anime',
-          origin_country: 'Japan',
-          source_format: 'Manga',
-          release_year: 2013,
-          creator: 'Hajime Isayama',
-          episodes_or_volumes: 89,
-          watch_order_info: 'Season 1 -> Season 2 -> Season 3 Part 1 & 2 -> Final Season',
-          ost_list: 'Guren no Yumiya, Akatsuki no Requiem, The Rumbling',
-          social_links: 'Twitter: @anime_shingeki, Official Site: shingeki.tv',
-        });
+        setMedia(null);
+        setError(err instanceof Error ? err.message : 'Could not load this title.');
       } finally {
         setLoading(false);
       }
@@ -40,7 +40,7 @@ export default function MediaDetailPage() {
   }, [id]);
 
   if (loading) return <div className="flex min-h-screen items-center justify-center text-gray-900">Loading details...</div>;
-  if (!media) return <div className="flex min-h-screen items-center justify-center text-gray-900">Media not found</div>;
+  if (!media) return <div role="alert" className="mx-auto my-20 max-w-xl rounded-xl bg-white p-8 text-center text-gray-800"><h1 className="text-xl font-bold">{error || 'Title not found'}</h1><p className="mt-2 text-sm text-gray-500">Check the catalog connection and try again.</p></div>;
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4 sm:px-6 lg:px-8">
@@ -58,6 +58,10 @@ export default function MediaDetailPage() {
           <p><strong>Creator:</strong> {media.creator}</p>
           <p><strong>Episodes/Volumes:</strong> {media.episodes_or_volumes}</p>
         </div>
+        <section className="border-t pt-6">
+          <div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-xl font-semibold text-gray-900">Characters in this story</h2><p className="mt-1 text-sm text-gray-500">{media.characters?.length || 0} linked characters</p></div>{isAdmin && <Link href="/characters" className="rounded-lg bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100">Manage characters</Link>}</div>
+          {!media.characters?.length ? <p className="mt-4 rounded-xl bg-gray-50 p-5 text-sm text-gray-500">No characters have been added to this title yet.</p> : <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{media.characters.map((character) => <Link key={character.id} href={`/characters/${character.id}`} className="rounded-xl border border-gray-100 bg-gray-50 p-4 transition hover:border-violet-200 hover:bg-violet-50"><p className="font-semibold text-gray-900">{character.name}</p><p className="mt-1 text-xs text-gray-500">{character.birthplace || 'Origin not recorded'}{character.first_appearance_year ? ` · First appeared ${character.first_appearance_year}` : ''}</p></Link>)}</div>}
+        </section>
         <div className="border-t pt-4">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Watch / Reading Order</h2>
           <p className="text-gray-700 bg-gray-50 p-4 rounded">{media.watch_order_info || 'N/A'}</p>

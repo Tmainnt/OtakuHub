@@ -3,32 +3,25 @@
 import { useState, useEffect } from 'react';
 import PostCard from '@/components/PostCard';
 import FriendRecommendations from '@/components/FriendRecommendations';
+import { fetchAPI } from '@/services/api';
 
 export default function CommunityPage() {
-  const [posts, setPosts] = useState<any[]>([]);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [posts, setPosts] = useState<{id:number; user_id:number; content:string; media_urls?:string; created_at:string}[]>([]);
+  const [recommendations, setRecommendations] = useState<{id:number; username:string; match_percentage:number; favorite_genre:string}[]>([]);
   const [content, setContent] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [posting, setPosting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const postsRes = await fetch('http://localhost:8080/api/posts');
-        const postsData = await postsRes.json();
-        setPosts(postsData || []);
-
-        const recsRes = await fetch('http://localhost:8080/api/users/recommendations');
-        const recsData = await recsRes.json();
-        setRecommendations(recsData || []);
+        const [postData, recData] = await Promise.all([fetchAPI('/posts'), fetchAPI('/users/recommendations')]);
+        setPosts(postData || []);
+        setRecommendations(recData || []);
       } catch (err) {
-        // Fallback mock data
-        setPosts([
-          { id: 1, user_id: 1, content: 'Just finished watching Attack on Titan Final Season. Absolute masterpiece!', created_at: new Date().toISOString() },
-        ]);
-        setRecommendations([
-          { id: 2, username: 'AnimeOtaku99', match_percentage: 95, favorite_genre: 'Action & Fantasy' },
-        ]);
+        setError(err instanceof Error ? err.message : 'Could not connect to the community.');
       } finally {
         setLoading(false);
       }
@@ -40,20 +33,16 @@ export default function CommunityPage() {
     e.preventDefault();
     if (!content.trim()) return;
 
+    const userId = localStorage.getItem('userId');
+    if (!localStorage.getItem('token') || !userId) { setError('Sign in to publish a post.'); return; }
+    setPosting(true); setError('');
     try {
-      const res = await fetch('http://localhost:8080/api/posts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: 1, content, media_urls: mediaUrl }),
-      });
-      if (!res.ok) throw new Error('Failed to create post');
-      const newPost = await res.json();
+      const newPost = await fetchAPI('/posts', { method: 'POST', body: JSON.stringify({ user_id: Number(userId), content, media_urls: mediaUrl }) });
       setPosts([newPost, ...posts]);
       setContent('');
       setMediaUrl('');
-    } catch (err) {
-      console.error('Error creating post');
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not publish post.'); }
+    finally { setPosting(false); }
   };
 
   return (
@@ -72,7 +61,7 @@ export default function CommunityPage() {
               />
               <input
                 type="text"
-                placeholder="Image or Video URL (optional)"
+                placeholder="Image or video URL (optional)"
                 value={mediaUrl}
                 onChange={(e) => setMediaUrl(e.target.value)}
                 className="w-full rounded-md border border-gray-300 p-2 text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -81,7 +70,7 @@ export default function CommunityPage() {
                 type="submit"
                 className="rounded-md bg-indigo-600 px-4 py-2 text-white font-semibold hover:bg-indigo-700 transition"
               >
-                Post
+                {posting ? 'Publishing…' : 'Publish'}
               </button>
             </form>
           </div>
@@ -89,6 +78,10 @@ export default function CommunityPage() {
           <div className="space-y-4">
             {loading ? (
               <p className="text-gray-600">Loading community feed...</p>
+            ) : error ? (
+              <p role="alert" className="rounded-xl bg-rose-50 p-5 text-sm text-rose-800">{error}</p>
+            ) : posts.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">No posts yet. Be the first to start a conversation.</div>
             ) : (
               posts.map((post) => <PostCard key={post.id} post={post} />)
             )}

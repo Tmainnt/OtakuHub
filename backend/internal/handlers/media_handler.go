@@ -11,11 +11,12 @@ import (
 )
 
 type MediaHandler struct {
-	repo *models.MediaRepository
+	repo          *models.MediaRepository
+	characterRepo *models.CharacterRepository
 }
 
 func NewMediaHandler(db *sql.DB) *MediaHandler {
-	return &MediaHandler{repo: models.NewMediaRepository(db)}
+	return &MediaHandler{repo: models.NewMediaRepository(db), characterRepo: models.NewCharacterRepository(db)}
 }
 
 func (h *MediaHandler) GetMediaList(w http.ResponseWriter, r *http.Request) {
@@ -58,6 +59,11 @@ func (h *MediaHandler) GetMediaDetail(w http.ResponseWriter, r *http.Request) {
 	media, err := h.repo.GetByID(id)
 	if err != nil {
 		http.Error(w, "Media not found", http.StatusNotFound)
+		return
+	}
+	media.Characters, err = h.characterRepo.GetForMedia(id)
+	if err != nil {
+		http.Error(w, "Could not fetch title characters", http.StatusInternalServerError)
 		return
 	}
 

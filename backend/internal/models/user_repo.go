@@ -2,7 +2,6 @@ package models
 
 import (
 	"database/sql"
-	"errors"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -16,16 +15,16 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) CreateUser(username, password string) (*User, error) {
+func (r *UserRepository) CreateUser(username, password, role string) (*User, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 
-	query := `INSERT INTO users (username, password_hash, created_at) VALUES ($1, $2, $3) RETURNING id, username, created_at`
+	query := `INSERT INTO users (username, password_hash, role, created_at) VALUES ($1, $2, $3, $4) RETURNING id, username, role, created_at`
 	var user User
 	now := time.Now()
-	err = r.db.QueryRow(query, username, string(hashedPassword), now).Scan(&user.ID, &user.Username, &user.CreatedAt)
+	err = r.db.QueryRow(query, username, string(hashedPassword), role, now).Scan(&user.ID, &user.Username, &user.Role, &user.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -33,13 +32,13 @@ func (r *UserRepository) CreateUser(username, password string) (*User, error) {
 }
 
 func (r *UserRepository) GetUserByUsername(username string) (*User, string, error) {
-	query := `SELECT id, username, password_hash, created_at FROM users WHERE username = $1`
+	query := `SELECT id, username, password_hash, role, created_at FROM users WHERE username = $1`
 	var user User
 	var passwordHash string
-	err := r.db.QueryRow(query, username).Scan(&user.ID, &user.Username, &passwordHash, &user.CreatedAt)
+	err := r.db.QueryRow(query, username).Scan(&user.ID, &user.Username, &passwordHash, &user.Role, &user.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, "", errors.New("user not found")
+			return nil, "", sql.ErrNoRows
 		}
 		return nil, "", err
 	}
@@ -47,9 +46,9 @@ func (r *UserRepository) GetUserByUsername(username string) (*User, string, erro
 }
 
 func (r *UserRepository) GetUserByID(id int) (*User, error) {
-	query := `SELECT id, username, created_at FROM users WHERE id = $1`
+	query := `SELECT id, username, role, created_at FROM users WHERE id = $1`
 	var user User
-	err := r.db.QueryRow(query, id).Scan(&user.ID, &user.Username, &user.CreatedAt)
+	err := r.db.QueryRow(query, id).Scan(&user.ID, &user.Username, &user.Role, &user.CreatedAt)
 	if err != nil {
 		return nil, err
 	}

@@ -11,7 +11,7 @@
 
 ### 2. Database Schema & ORM
 - **Decision**: PostgreSQL with native SQL queries or lightweight query builders (like `sqlx` or `pgx`) in Go.
-- **Rationale**: Direct PostgreSQL usage (`psql -U postgres`, password `Reyzaburrel123@`) ensures full control over complex relations (e.g., character relationship matrix, radar chart stats aggregation, watch orders).
+- **Rationale**: Direct PostgreSQL usage with credentials supplied through environment variables ensures control over complex relations while keeping secrets out of source files.
 - **Alternatives Considered**: GORM (can introduce abstraction overhead for complex relational queries and graph-like character relationships).
 
 ### 3. Real-Time Chat & File Uploads
