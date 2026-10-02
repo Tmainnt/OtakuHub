@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: otakuhub-api
+    runtime: go
+    plan: free
+    rootDir: backend
+    buildCommand: go build -o app ./cmd/main.go
+    startCommand: ./app
+    healthCheckPath: /api/health
+    envVars:
+      - key: BIND_ADDRESS
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false

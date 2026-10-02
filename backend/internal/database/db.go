@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	_ "github.com/lib/pq"
 )
@@ -17,12 +18,19 @@ func InitDB() (*sql.DB, error) {
 	user := getEnv("DB_USER", "postgres")
 	password := os.Getenv("DB_PASSWORD")
 	dbname := getEnv("DB_NAME", "otakuhub")
-	if password == "" {
+	databaseURL := os.Getenv("DATABASE_URL")
+	if password == "" && databaseURL == "" {
 		return nil, fmt.Errorf("DB_PASSWORD is required; set it in backend/.env or the process environment")
 	}
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
+	connStr := databaseURL
+	if connStr == "" {
+		sslMode := getEnv("DB_SSLMODE", "disable")
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+			host, port, user, password, dbname, sslMode)
+	} else if strings.HasPrefix(connStr, "postgresql://") {
+		connStr = "postgres://" + strings.TrimPrefix(connStr, "postgresql://")
+	}
 
 	var err error
 	DB, err = sql.Open("postgres", connStr)

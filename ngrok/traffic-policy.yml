@@ -1,8 +1,0 @@
-on_http_request:
-  - actions:
-      - type: basic-auth
-        config:
-          realm: OtakuHub API
-          credentials:
-            - otakuhub:${secrets.get('otakuhub-api', 'basic-auth-password')}
-          enforce: true
