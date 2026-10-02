@@ -21,6 +21,9 @@ type tokenClaims struct {
 func AuthMiddleware(secret []byte, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
+		if appAuthHeader := r.Header.Get("X-Otaku-Authorization"); appAuthHeader != "" {
+			authHeader = appAuthHeader
+		}
 		if authHeader == "" {
 			http.Error(w, "Authorization header required", http.StatusUnauthorized)
 			return

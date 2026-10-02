@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -117,11 +118,16 @@ func main() {
 	if port == "" {
 		port = "8081"
 	}
+	bindAddress := os.Getenv("BIND_ADDRESS")
+	if bindAddress == "" {
+		bindAddress = "127.0.0.1"
+	}
 
 	handler := middleware.CorsMiddleware(middleware.LogMiddleware(mux))
 
-	log.Printf("Starting OtakuHub Go backend server on port %s...", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
+	listenAddress := net.JoinHostPort(bindAddress, port)
+	log.Printf("Starting OtakuHub Go backend server on %s...", listenAddress)
+	if err := http.ListenAndServe(listenAddress, handler); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }
