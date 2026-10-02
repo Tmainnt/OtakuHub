@@ -56,6 +56,7 @@ type Favorite struct {
 type Post struct {
 	ID        int       `json:"id"`
 	UserID    int       `json:"user_id"`
+	Username  string    `json:"username"`
 	Content   string    `json:"content"`
 	MediaUrls string    `json:"media_urls"`
 	CreatedAt time.Time `json:"created_at"`

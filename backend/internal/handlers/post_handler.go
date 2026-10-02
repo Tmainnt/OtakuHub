@@ -57,8 +57,8 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.UserID = userIDValue
-	if strings.TrimSpace(p.Content) == "" {
-		http.Error(w, "Post content is required", http.StatusBadRequest)
+	if strings.TrimSpace(p.Content) == "" && strings.TrimSpace(p.MediaUrls) == "" {
+		http.Error(w, "Post content or at least one image is required", http.StatusBadRequest)
 		return
 	}
 

@@ -26,6 +26,7 @@ export default function Navbar() {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('username');
     window.dispatchEvent(new Event('authchange'));
     router.push('/login');
   };

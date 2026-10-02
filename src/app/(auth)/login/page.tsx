@@ -29,6 +29,7 @@ export default function LoginPage() {
       if (!data?.token || !data.user_id) throw new Error('The server returned an invalid login response.');
       localStorage.setItem('token', data.token);
       localStorage.setItem('userId', String(data.user_id));
+      localStorage.setItem('username', data.username || username.trim());
       localStorage.setItem('userRole', data.role);
       window.dispatchEvent(new Event('authchange'));
 

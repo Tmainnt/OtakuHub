@@ -62,6 +62,8 @@ export default function ProfilePage() {
             onClick={() => {
               localStorage.removeItem('token');
               localStorage.removeItem('userId');
+              localStorage.removeItem('username');
+              localStorage.removeItem('userRole');
               router.push('/login');
             }}
             className="rounded bg-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-300 transition"

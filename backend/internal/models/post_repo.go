@@ -13,7 +13,7 @@ func NewPostRepository(db *sql.DB) *PostRepository {
 }
 
 func (r *PostRepository) GetAll() ([]Post, error) {
-	rows, err := r.db.Query(`SELECT id, user_id, content, media_urls, created_at FROM posts ORDER BY created_at DESC`)
+	rows, err := r.db.Query(`SELECT p.id, p.user_id, u.username, p.content, p.media_urls, p.created_at FROM posts p LEFT JOIN users u ON u.id = p.user_id ORDER BY p.created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +22,7 @@ func (r *PostRepository) GetAll() ([]Post, error) {
 	var list []Post
 	for rows.Next() {
 		var p Post
-		if err := rows.Scan(&p.ID, &p.UserID, &p.Content, &p.MediaUrls, &p.CreatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Username, &p.Content, &p.MediaUrls, &p.CreatedAt); err != nil {
 			return nil, err
 		}
 		list = append(list, p)
@@ -32,7 +32,10 @@ func (r *PostRepository) GetAll() ([]Post, error) {
 
 func (r *PostRepository) Create(p *Post) error {
 	query := `INSERT INTO posts (user_id, content, media_urls) VALUES ($1, $2, $3) RETURNING id, created_at`
-	return r.db.QueryRow(query, p.UserID, p.Content, p.MediaUrls).Scan(&p.ID, &p.CreatedAt)
+	if err := r.db.QueryRow(query, p.UserID, p.Content, p.MediaUrls).Scan(&p.ID, &p.CreatedAt); err != nil {
+		return err
+	}
+	return r.db.QueryRow(`SELECT username FROM users WHERE id = $1`, p.UserID).Scan(&p.Username)
 }
 
 func (r *PostRepository) Delete(id, userID int) error {
